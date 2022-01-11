@@ -99,31 +99,27 @@ int vector_source_impl<T>::work(int noutput_items,
         if (size == 0)
             return -1;
 
-        if (d_settags) {
-            int n_outputitems_per_vector = d_data.size() / d_vlen;
-            for (int i = 0; i < noutput_items; i += n_outputitems_per_vector) {
-                // FIXME do proper vector copy
-                memcpy((void*)optr, (const void*)&d_data[0], size * sizeof(T));
-                optr += size;
-                for (unsigned t = 0; t < d_tags.size(); t++) {
-                    this->add_item_tag(0,
-                                       this->nitems_written(0) + i + d_tags[t].offset,
-                                       d_tags[t].key,
-                                       d_tags[t].value,
-                                       d_tags[t].srcid);
-                }
-            }
-        } else {
-            for (int i = 0; i < static_cast<int>(noutput_items * d_vlen); i++) {
-                optr[i] = d_data[offset++];
-                if (offset >= size) {
-                    offset = 0;
-                }
+        if ((offset == 0) && (this->nitems_written(0)) == 0) {
+            for (unsigned t = 0; t < d_tags.size(); t++) {
+                this->add_item_tag(
+                    0, this->nitems_written(0) + d_tags[t].offset, d_tags[t].key, d_tags[t].value, d_tags[t].srcid);
             }
         }
 
+        for (int i = 0; i < static_cast<int>(noutput_items * d_vlen); i++) {
+                optr[i] = d_data[offset++];
+                if (offset >= size) {
+                    offset = 0;
+                    d_offset = 0;
+                    for (unsigned t = 0; t < d_tags.size(); t++) {
+                        this->add_item_tag(
+                            0, this->nitems_written(0) + i + 1 + d_tags[t].offset, d_tags[t].key, d_tags[t].value, d_tags[t].srcid);
+                    }
+                }
+        }
         d_offset = offset;
         return noutput_items;
+
     } else {
         if (d_offset >= d_data.size())
             return -1; // Done!
